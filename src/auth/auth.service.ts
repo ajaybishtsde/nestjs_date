@@ -1,9 +1,10 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { AuthDto } from './dto';
+import { SigninDto, SignupDto } from './dto';
 import * as argon from 'argon2';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from 'generated/prisma';
@@ -12,11 +13,7 @@ import { Prisma } from 'generated/prisma';
 export class AuthService {
   constructor(private prisma: PrismaService) {}
 
-  login() {
-    return 'This is login response';
-  }
-
-  async signup(dto: AuthDto) {
+  async signup(dto: SignupDto) {
     try {
       const hash = await argon.hash(dto.password);
 
@@ -40,6 +37,34 @@ export class AuthService {
             `A user with this ${error.meta?.target} already exists`,
           );
         }
+      }
+
+      throw new InternalServerErrorException('Something went wrong');
+    }
+  }
+
+  async signin(dto: SigninDto) {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { phone: dto.phone },
+      });
+
+      if (!user) {
+        throw new ForbiddenException('Incorrect credentials');
+      }
+
+      const isPasswordMatches = await argon.verify(user.hash, dto.password);
+      if (!isPasswordMatches) {
+        throw new ForbiddenException('Incorrect credentials');
+      }
+
+      const { hash, ...safeUser } = user;
+      return safeUser;
+    } catch (error) {
+      console.error('Signin error:', error);
+
+      if (error instanceof ForbiddenException) {
+        throw error;
       }
 
       throw new InternalServerErrorException('Something went wrong');
