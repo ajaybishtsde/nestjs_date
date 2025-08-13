@@ -8,10 +8,16 @@ import { SigninDto, SignupDto } from './dto';
 import * as argon from 'argon2';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from 'generated/prisma';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private jwtService: JwtService,
+    private config: ConfigService,
+  ) {}
 
   async signup(dto: SignupDto) {
     try {
@@ -26,8 +32,7 @@ export class AuthService {
         },
       });
 
-      const { hash: _, ...safeUser } = user;
-      return safeUser;
+      return this.signToken(user.id, user.phone);
     } catch (error) {
       console.error('Signup error:', error);
 
@@ -58,8 +63,7 @@ export class AuthService {
         throw new ForbiddenException('Incorrect credentials');
       }
 
-      const { hash, ...safeUser } = user;
-      return safeUser;
+      return this.signToken(user.id, user.phone);
     } catch (error) {
       console.error('Signin error:', error);
 
@@ -68,6 +72,26 @@ export class AuthService {
       }
 
       throw new InternalServerErrorException('Something went wrong');
+    }
+  }
+
+  async signToken(
+    id: number,
+    phone: string,
+  ): Promise<{ access_token: string }> {
+    try {
+      const payload = {
+        id,
+        phone,
+      };
+      const access_token = await this.jwtService.signAsync(payload, {
+        expiresIn: '2m',
+        secret: this.config.get('JWT_SECRET'),
+      });
+      return { access_token };
+    } catch (error) {
+      console.error('Error signing token:', error);
+      throw new InternalServerErrorException('Token generation failed');
     }
   }
 }
