@@ -28,7 +28,7 @@ export class AuthService {
       const user = await this.prisma.user.create({
         data: {
           ...userData,
-          hash,
+          password: hash,
         },
       });
 
@@ -58,7 +58,7 @@ export class AuthService {
         throw new ForbiddenException('Incorrect credentials');
       }
 
-      const isPasswordMatches = await argon.verify(user.hash, dto.password);
+      const isPasswordMatches = await argon.verify(user.password, dto.password);
       if (!isPasswordMatches) {
         throw new ForbiddenException('Incorrect credentials');
       }
