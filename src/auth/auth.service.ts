@@ -78,20 +78,44 @@ export class AuthService {
   async signToken(
     id: number,
     phone: string,
-  ): Promise<{ access_token: string }> {
+  ): Promise<{ status: boolean; access_token: string }> {
     try {
       const payload = {
-        id,
+        sub: id,
         phone,
       };
       const access_token = await this.jwtService.signAsync(payload, {
-        expiresIn: '2m',
-        secret: this.config.get('JWT_SECRET'),
+        expiresIn: '10m',
+        secret: this.config.get<string>('JWT_SECRET'),
       });
-      return { access_token };
+      return {
+        status: true,
+        access_token,
+      };
     } catch (error) {
       console.error('Error signing token:', error);
       throw new InternalServerErrorException('Token generation failed');
+    }
+  }
+
+  async getCurrentUser(id: number) {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: {
+          id,
+        },
+      });
+
+      if (!user) throw Error();
+      const { password, ...userWithoutPassword } = user;
+
+      return {
+        status: true,
+        user: userWithoutPassword,
+      };
+    } catch (error) {
+      console.log('error', error);
+      throw new Error();
     }
   }
 }
