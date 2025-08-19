@@ -1,6 +1,14 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { SigninDto, SignupDto } from './dto';
+import { ChangePasswordDto, SigninDto, SignupDto } from './dto';
 import { AuthGuard } from './auth.gaurd';
 import type { Request } from 'express';
 
@@ -27,5 +35,19 @@ export class AuthController {
       throw new Error('User not found in request');
     }
     return this.authService.getCurrentUser(req.user.sub);
+  }
+
+  @UseGuards(AuthGuard)
+  @Patch('change-password')
+  changePassword(@Req() req: Request, @Body() dto: ChangePasswordDto) {
+    console.log('>', dto.oldPassword);
+    if (!req.user) {
+      throw new Error('User not found in request');
+    }
+    return this.authService.changePassword(
+      req.user.sub,
+      dto.oldPassword,
+      dto.newPassword,
+    );
   }
 }

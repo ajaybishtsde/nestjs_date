@@ -26,3 +26,13 @@ export class SigninDto {
   @IsNotEmpty()
   password: string;
 }
+
+export class ChangePasswordDto {
+  @IsString()
+  @IsNotEmpty()
+  oldPassword: string;
+
+  @IsString()
+  @IsStrongPassword()
+  newPassword: string;
+}

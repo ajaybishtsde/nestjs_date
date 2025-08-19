@@ -1,8 +1,10 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import { SigninDto, SignupDto } from './dto';
 import * as argon from 'argon2';
@@ -106,7 +108,8 @@ export class AuthService {
         },
       });
 
-      if (!user) throw Error();
+      if (!user) throw new BadRequestException('User not found');
+
       const { password, ...userWithoutPassword } = user;
 
       return {
@@ -114,8 +117,52 @@ export class AuthService {
         user: userWithoutPassword,
       };
     } catch (error) {
-      console.log('error', error);
-      throw new Error();
+      console.error('Error in getCurrentUser:', error);
+
+      throw new Error('Unable to fetch user');
+    }
+  }
+
+  async changePassword(id: number, oldPassword: string, newPassword: string) {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: {
+          id,
+        },
+      });
+
+      if (!user) throw new BadRequestException('User not found');
+
+      const oldPasswordMatches = await argon.verify(user.password, oldPassword);
+
+      if (!oldPasswordMatches)
+        throw new BadRequestException('Old password does not match');
+
+      const hashPassword = await argon.hash(newPassword);
+
+      await this.prisma.user.update({
+        where: {
+          id,
+        },
+        data: {
+          password: hashPassword,
+        },
+      });
+
+      return {
+        status: true,
+        message: 'Password updated successfully',
+      };
+    } catch (error) {
+      console.error('Error in changePassword:', error);
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+
+      throw new InternalServerErrorException('Unable to change password');
     }
   }
 }
